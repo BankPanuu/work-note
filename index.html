@@ -204,6 +204,18 @@ h4.sec{margin:6px 2px 8px;font-size:14px}
 .xs{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--card);border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));z-index:21;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:92vh;overflow-y:auto}
 .xs.on{transform:none}
 .months button.add{background:none;border:1.5px dashed var(--mute)}
+.lock .setup-card{text-align:center;padding:28px 18px 22px}
+.dots{display:flex;gap:14px;justify-content:center;margin:18px 0 6px;height:18px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--mute);box-sizing:border-box}
+.dots i.on{background:var(--accent);border-color:var(--accent)}
+.dots.bad{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px 22px;justify-content:center;margin:20px 0 10px}
+.pad button{height:72px;border-radius:50%;border:0;background:var(--chip);color:var(--ink);font:600 26px/1 inherit;font-family:inherit;touch-action:manipulation}
+.pad button:active{background:var(--accent);color:var(--accent-ink)}
+.pad button.ghost{background:none}
+.lockmsg{min-height:20px;font-size:13.5px;color:var(--out);margin:0}
+.lockhint{font-size:13.5px;color:var(--mute);margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -241,7 +253,23 @@ h4.sec{margin:6px 2px 8px;font-size:14px}
       <button class="btn danger" id="cfgClear" hidden>ลืมค่า</button>
       <button class="btn primary" id="cfgSave">เชื่อมต่อ</button>
     </div>
+    <button class="linkbtn" id="cfgPin" hidden>เปลี่ยนรหัสผ่านเข้าแอป</button>
     <button class="linkbtn" id="cfgDemo">ลองดูโหมดตัวอย่างก่อน</button>
+  </div>
+</section>
+<section id="lock" class="setup lock" hidden>
+  <div class="setup-card">
+    <h2 id="lkTitle">ใส่รหัสผ่าน</h2>
+    <p class="lockhint" id="lkSub"></p>
+    <div class="dots" id="lkDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <p class="lockmsg" id="lkMsg" role="alert"></p>
+    <div class="pad" id="lkPad">
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button class="ghost" disabled></button><button data-k="0">0</button><button class="ghost" data-k="del" aria-label="ลบ">⌫</button>
+    </div>
+    <button class="linkbtn" id="lkForgot">ลืมรหัสผ่าน</button>
   </div>
 </section>
 <div class="toast" id="toast" role="status"></div>
@@ -484,29 +512,126 @@ $('sheet').addEventListener('change',function(e){
 });
 $('scrim').onclick=closeForm;
 $('refresh').onclick=function(){load(true)};
-document.addEventListener('visibilitychange',function(){ if(!document.hidden&&S.data&&!$('sheet').classList.contains('on'))load(true) });
+function onVis(){
+  if(document.hidden){ S.hiddenAt=Date.now(); return }
+  if(KEY&&S.hiddenAt&&Date.now()-S.hiddenAt>LOCK_AFTER){ lockNow(); return }
+  if(CFG&&S.data&&!$('sheet').classList.contains('on'))load(true);
+}
+document.addEventListener('visibilitychange',onVis);
+
+
+/* ===== รหัสผ่านเข้าแอป (PIN 6 หลัก) =====
+   ลิงก์ Apps Script + รหัสลับ ถูกเข้ารหัส (AES-GCM, กุญแจจาก PIN ด้วย PBKDF2) เก็บในเครื่อง
+   ไม่ใส่ PIN ถูกต้องก็อ่านค่าไม่ได้ และแอปจะไม่โหลดข้อมูลจากชีต */
+var KEY=null, LOCK_AFTER=60000, VKEY='workNoteVault', TKEY='workNoteTry';
+var Lk={mode:'enter',buf:'',first:'',cb:null,busy:false};
+function vaultGet(){ try{ var v=JSON.parse(localStorage.getItem(VKEY)||'null'); return (v&&v.salt&&v.iv&&v.ct)?v:null }catch(e){ return null } }
+function vaultDel(){ try{ localStorage.removeItem(VKEY); localStorage.removeItem(TKEY) }catch(e){} }
+var HAS_CRYPTO=!!(window.crypto&&crypto.subtle);
+function b64(buf){ var a=new Uint8Array(buf),s=''; for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]); return btoa(s) }
+function unb64(s){ var b=atob(s),a=new Uint8Array(b.length); for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i); return a }
+function deriveKey(pin,salt){
+  return crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']).then(function(k){
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:250000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt']) });
+}
+function encCfg(key,salt,cfg){
+  var iv=crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,new TextEncoder().encode(JSON.stringify(cfg))).then(function(ct){
+    return {salt:b64(salt),iv:b64(iv),ct:b64(ct)} });
+}
+function decCfg(key,v){
+  return crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(v.iv)},key,unb64(v.ct)).then(function(buf){ return JSON.parse(new TextDecoder().decode(buf)) });
+}
+function vaultSave(){ var v=vaultGet(); if(!KEY||!v||!CFG)return Promise.resolve();
+  return encCfg(KEY,unb64(v.salt),CFG).then(function(nv){ localStorage.setItem(VKEY,JSON.stringify(nv)) }) }
+
+/* ถ้ายังไม่มี PIN ให้ตั้ง PIN ก่อนเข้าแอป (ถ้าเครื่องไม่รองรับการเข้ารหัส จะเก็บแบบเดิม) */
+function ensurePin(cb){
+  if(KEY){ vaultSave().then(cb,cb); return }
+  if(!HAS_CRYPTO){ cfgSet(CFG); cb(); return }
+  openLock('new',cb);
+}
+
+function tries(){ try{ return JSON.parse(localStorage.getItem(TKEY)||'{}') }catch(e){ return {} } }
+function setTries(t){ try{ localStorage.setItem(TKEY,JSON.stringify(t)) }catch(e){} }
+function openLock(mode,cb){
+  Lk.mode=mode; Lk.buf=''; Lk.first=''; Lk.cb=cb||null; Lk.busy=false;
+  var m={enter:['ใส่รหัสผ่าน','ใส่รหัส 6 หลักเพื่อเข้า Work Note'],
+         new:['ตั้งรหัสผ่านเข้าแอป','ตั้งรหัสตัวเลข 6 หลัก ใช้ทุกครั้งที่เปิดแอป'],
+         confirm:['ยืนยันรหัสผ่านอีกครั้ง','พิมพ์รหัสเดิมซ้ำ']}[mode];
+  $('lkTitle').textContent=m[0]; $('lkSub').textContent=m[1]; $('lkMsg').textContent='';
+  $('lkForgot').hidden=(mode!=='enter'); $('lkForgot').textContent='ลืมรหัสผ่าน'; $('lkForgot').classList.remove('sure');
+  dots(); $('lock').hidden=false; waitCheck();
+}
+function dots(bad){ var d=$('lkDots'); [].forEach.call(d.children,function(el,i){ el.classList.toggle('on',i<Lk.buf.length) });
+  d.classList.remove('bad'); if(bad){ void d.offsetWidth; d.classList.add('bad') } }
+function waitCheck(){
+  if(Lk.mode!=='enter')return false;
+  var t=tries(), left=(t.until||0)-Date.now();
+  if(left>0){ $('lkMsg').textContent='ใส่ผิดหลายครั้ง รอ '+Math.ceil(left/1000)+' วินาที'; clearTimeout(Lk.tm); Lk.tm=setTimeout(function(){ if(!waitCheck())$('lkMsg').textContent='' },1000); return true }
+  return false;
+}
+function lockNow(){
+  CFG=null; KEY=null; S.data=null; X_clear();
+  $('main').innerHTML=''; $('sub').textContent=''; closeForm(); $('setup').hidden=true; openLock('enter');
+}
+function X_clear(){ S.all=[]; S.cyc={} }
+function pinDone(){
+  var pin=Lk.buf;
+  if(Lk.mode==='enter'){
+    if(waitCheck()){ Lk.buf=''; dots(); return }
+    var v=vaultGet(); if(!v){ openLock('new',function(){ load(false) }); return }
+    Lk.busy=true;
+    deriveKey(pin,unb64(v.salt)).then(function(k){ return decCfg(k,v).then(function(c){ return {k:k,c:c} }) })
+    .then(function(r){ KEY=r.k; CFG=r.c; setTries({}); $('lock').hidden=true; Lk.busy=false; load(false) },
+      function(){ var t=tries(), n=(t.n||0)+1, o={n:n}; var msg='รหัสผ่านไม่ถูกต้อง';
+        if(n>=5){ o.until=Date.now()+30000*Math.pow(2,Math.min(4,n-5)); }
+        setTries(o); Lk.buf=''; Lk.busy=false; dots(true); $('lkMsg').textContent=msg+(n<5?' (ลองได้อีก '+(5-n)+' ครั้ง)':''); if(n>=5)waitCheck() });
+  } else if(Lk.mode==='new'){
+    Lk.first=pin; Lk.buf=''; var cb=Lk.cb; openLock('confirm',cb); Lk.first=pin;
+  } else {
+    if(pin!==Lk.first){ var cb2=Lk.cb; openLock('new',cb2); $('lkMsg').textContent='รหัสไม่ตรงกัน ลองตั้งใหม่'; return }
+    Lk.busy=true; var salt=crypto.getRandomValues(new Uint8Array(16));
+    deriveKey(pin,salt).then(function(k){ return encCfg(k,salt,CFG).then(function(v){ KEY=k; localStorage.setItem(VKEY,JSON.stringify(v)); try{localStorage.removeItem(CFGKEY)}catch(e){} }) })
+    .then(function(){ $('lock').hidden=true; Lk.busy=false; setTries({}); toast('ตั้งรหัสผ่านแล้ว'); if(Lk.cb)Lk.cb() },
+      function(){ Lk.busy=false; Lk.buf=''; dots(true); $('lkMsg').textContent='ตั้งรหัสไม่สำเร็จ ลองใหม่' });
+  }
+}
+$('lkPad').addEventListener('click',function(e){
+  var b=e.target.closest('[data-k]'); if(!b||Lk.busy)return; var k=b.dataset.k;
+  if(k==='del'){ Lk.buf=Lk.buf.slice(0,-1); dots(); return }
+  if(Lk.mode==='enter'&&waitCheck())return;
+  if(Lk.buf.length>=6)return; Lk.buf+=k; dots(); $('lkMsg').textContent='';
+  if(Lk.buf.length===6)setTimeout(pinDone,120);
+});
+$('lkForgot').onclick=function(){
+  var b=$('lkForgot'); if(!b.classList.contains('sure')){ b.classList.add('sure'); b.textContent='แตะอีกครั้งเพื่อล้างค่าและตั้งใหม่ทั้งหมด'; return }
+  vaultDel(); try{localStorage.removeItem(CFGKEY)}catch(e){} KEY=null; CFG=null; $('lock').hidden=true; openSetup('ล้างค่าแล้ว กรอกลิงก์และรหัสลับใหม่ จากนั้นตั้งรหัสผ่านใหม่');
+};
+$('cfgPin').onclick=function(){ $('setup').hidden=true; openLock('new',function(){ toast('เปลี่ยนรหัสผ่านแล้ว') }) };
 
 function openSetup(msg){
   $('cfgUrl').value=CFG?CFG.url:''; $('cfgTok').value=CFG?CFG.token:'';
-  $('cfgErr').textContent=msg||''; $('cfgClear').hidden=!CFG;
+  $('cfgErr').textContent=msg||''; $('cfgClear').hidden=!CFG; $('cfgPin').hidden=!KEY;
   $('cfgSave').disabled=false; $('cfgSave').textContent='เชื่อมต่อ'; $('setup').hidden=false;
 }
 $('gear').onclick=function(){ openSetup('') };
 $('cfgDemo').onclick=function(){ location.search='?demo=1' };
-$('cfgClear').onclick=function(){ cfgSet(null); CFG=null; S.data=null; $('main').innerHTML=''; openSetup('ลบค่าที่จำไว้แล้ว') };
+$('cfgClear').onclick=function(){ cfgSet(null); vaultDel(); KEY=null; CFG=null; S.data=null; $('main').innerHTML=''; openSetup('ลบค่าที่จำไว้แล้ว') };
 $('cfgSave').onclick=function(){
   var url=$('cfgUrl').value.trim(), tok=$('cfgTok').value.replace(/\s+/g,'');
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){ $('cfgErr').textContent='ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/ และลงท้ายด้วย /exec'; return }
   if(tok.length<16){ $('cfgErr').textContent='กรุณากรอกรหัสลับให้ครบ'; return }
   var prev=CFG; CFG={url:url,token:tok};
   $('cfgSave').disabled=true; $('cfgSave').textContent='กำลังเชื่อมต่อ…'; $('cfgErr').textContent='';
-  api('getAll',[]).then(function(){ cfgSet(CFG); $('setup').hidden=true; load(false) })
+  api('getAll',[]).then(function(){ $('setup').hidden=true; ensurePin(function(){ load(false) }) })
   .catch(function(e){ CFG=prev; $('cfgSave').disabled=false; $('cfgSave').textContent='เชื่อมต่อ'; $('cfgErr').textContent=e.message==='unauthorized'?'รหัสลับไม่ถูกต้อง':e.message });
 };
 
 if(DEMO){ $('demo').hidden=false; load(false) }
+else if(vaultGet()){ $('main').innerHTML=''; openLock('enter') }
 else if(!CFG){ $('main').innerHTML=''; openSetup('') }
-else load(false);
+else ensurePin(function(){ load(false) });
 </script>
 </body>
 </html>
