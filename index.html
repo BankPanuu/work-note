@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Work Note">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f4f5f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111412" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Work Note</title>
+<style>
+:root{
+  --bg:#f4f5f8; --card:#ffffff; --ink:#1f2421; --mute:#6c746f; --line:#e3e6ec;
+  --accent:#2b5aa8; --accent-ink:#ffffff; --out:#b4412f; --in:#1f7a4d; --chip:#eceff5;
+  --shadow:0 1px 2px rgba(30,30,20,.06),0 6px 20px rgba(30,30,20,.06);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6;
+  --grid:#e6e9ef; --other:#a9afaa;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#111412; --card:#1a1e1b; --ink:#eceee8; --mute:#9aa39c; --line:#2a302c;
+    --accent:#6a9be8; --accent-ink:#06142b; --out:#f08c7a; --in:#6fd09b; --chip:#242a26;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --grid:#2a302c; --other:#6b736d;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Sukhumvit Set","Thonburi",system-ui,sans-serif;
+  -webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select{font:inherit;color:inherit}
+.app{max-width:520px;margin:0 auto;padding:0 16px calc(120px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;
+  padding:calc(14px + env(safe-area-inset-top)) 0 8px}
+header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:.2px}
+header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute);letter-spacing:0}
+.icon-btn{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--mute)}
+.icon-btn:active{background:var(--chip)}
+.icon-btn svg{width:22px;height:22px}
+.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.months{position:sticky;top:0;z-index:5;background:var(--bg);margin:0 -16px;padding:6px 16px 10px;
+  display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.months::-webkit-scrollbar{display:none}
+.months button{flex:0 0 auto;min-width:56px;height:40px;padding:0 14px;border-radius:20px;background:var(--chip);
+  color:var(--mute);font-weight:600;font-size:15px;scroll-snap-align:center}
+.months button[aria-selected=true]{background:var(--accent);color:var(--accent-ink)}
+
+.hero{background:var(--accent);color:var(--accent-ink);border-radius:20px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+.hero .label{font-size:13px;opacity:.8}
+.hero .big{font-size:38px;font-weight:700;line-height:1.15;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.hero .big.neg{opacity:.95}
+.hero .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.22)}
+.hero .row b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+.hero .row span{font-size:12px;opacity:.8}
+.hero .avg{margin-top:10px;font-size:12.5px;opacity:.85}
+
+.ch{padding:16px 14px 14px;margin-top:14px}
+.ch h3{margin:0;font-size:15px}
+.ch .sub{font-size:12.5px;color:var(--mute);margin:2px 0 10px}
+.ch svg{display:block;width:100%;height:auto;overflow:visible}
+.ch svg text{fill:var(--mute);font-size:10px;font-family:inherit}
+.ch svg .sel{fill:var(--chip)}
+.ch [data-tip],.ch [data-mi]{cursor:pointer}
+.readout{min-height:20px;margin-top:8px;font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--mute);margin-bottom:8px;flex-wrap:wrap}
+.legend i,.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:baseline}
+.lg{display:flex;align-items:center;justify-content:space-between;padding:7px 2px;font-size:14px}
+.lg+.lg{border-top:1px solid var(--line)}
+.lg span:last-child{font-variant-numeric:tabular-nums;color:var(--mute)}
+.donutwrap{display:flex;justify-content:center;margin:4px 0 10px}
+.donutwrap svg{width:190px}
+.donutwrap .c1{font-size:11px}.donutwrap .c2{font-size:18px;font-weight:700;fill:var(--ink)}
+.hb{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 0}
+.hb+.hb{border-top:1px solid var(--line)}
+.hb b{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb span{font-variant-numeric:tabular-nums;font-size:14px}
+.hb .tr{grid-column:1/-1;height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
+.hb .tr i{display:block;height:100%;background:var(--s2);border-radius:0 4px 4px 0}
+.hb small{grid-column:1/-1;color:var(--mute);font-size:12px;margin-top:-1px}
+details{margin-top:10px;font-size:13px}
+summary{color:var(--mute);cursor:pointer;min-height:32px;display:flex;align-items:center}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:6px 4px;text-align:right;border-top:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mute);font-weight:600}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--chip);border-radius:12px;padding:3px;margin:16px 0 8px}
+.tabs button{height:38px;border-radius:10px;font-weight:600;color:var(--mute)}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+
+.day{margin-top:14px}
+.day-h{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 6px;color:var(--mute);font-size:13px;font-weight:600}
+.card{background:var(--card);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;min-height:56px}
+.item+.item{border-top:1px solid var(--line)}
+.item:active{background:var(--chip)}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .t span{font-size:12.5px;color:var(--mute)}
+.item .amt{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.amt.out{color:var(--out)} .amt.in{color:var(--in)}
+.empty{text-align:center;color:var(--mute);padding:40px 0}
+
+.grp{padding:14px}
+.grp+.grp{border-top:1px solid var(--line)}
+.grp .top{display:flex;justify-content:space-between;font-weight:600}
+.grp .top span:last-child{font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--chip);margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.grp small{color:var(--mute)}
+
+.fab{position:fixed;right:max(20px,calc(50% - 240px));bottom:calc(22px + env(safe-area-inset-bottom));
+  height:58px;padding:0 24px 0 20px;border-radius:29px;background:var(--accent);color:var(--accent-ink);
+  display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;box-shadow:0 8px 24px rgba(43,90,168,.4);z-index:6}
+.fab svg{width:22px;height:22px}
+.fab:active{transform:scale(.97)}
+
+#scrim{position:fixed;inset:0;background:rgba(10,14,12,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--card);
+  border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));z-index:21;
+  transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:92vh;overflow-y:auto}
+#sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
+.sh-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sh-h h2{margin:0;font-size:18px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--chip);border-radius:12px;padding:3px;margin-bottom:14px}
+.seg button{height:40px;border-radius:10px;font-weight:600;color:var(--mute)}
+.seg button[aria-pressed=true]{background:var(--card);box-shadow:var(--shadow)}
+.seg button[aria-pressed=true].exp{color:var(--out)} .seg button[aria-pressed=true].inc{color:var(--in)}
+.amount{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--line);padding-bottom:4px;margin-bottom:14px}
+.amount:focus-within{border-color:var(--accent)}
+.amount span{font-size:28px;color:var(--mute)}
+.amount input{flex:1;min-width:0;border:0;background:none;outline:0;font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
+label.f{display:block;font-size:12.5px;color:var(--mute);margin:0 0 4px 2px;font-weight:600}
+.fld{width:100%;height:48px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);padding:0 14px;outline:0;margin-bottom:12px;-webkit-appearance:none;appearance:none}
+.fld:focus{border-color:var(--accent)}
+.fld:disabled{opacity:.6}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chips button{height:38px;padding:0 14px;border-radius:19px;background:var(--chip);color:var(--ink);font-size:15px}
+.chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.err{color:var(--out);font-size:14px;min-height:20px;margin:0 2px 6px}
+.actions{display:flex;gap:10px;position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));
+  background:var(--card);padding:8px 0 calc(18px + env(safe-area-inset-bottom));margin-bottom:calc(-18px - env(safe-area-inset-bottom))}
+.btn{flex:1;height:52px;border-radius:14px;font-weight:700;font-size:17px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:disabled{opacity:.45}
+.btn.danger{flex:0 0 auto;padding:0 18px;color:var(--out);background:var(--chip)}
+.btn.danger.sure{background:var(--out);color:#fff}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translate(-50%,20px);
+  background:#222a26;color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;
+  transition:.25s;z-index:30;max-width:88vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.setup{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;
+  padding:calc(24px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+.setup[hidden]{display:none}
+.setup-card{width:100%;max-width:520px;background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:20px 18px}
+.setup-card h2{margin:0 0 6px;font-size:20px}
+.hint{margin:0 0 16px;color:var(--mute);font-size:14px}
+.linkbtn{display:block;margin:14px auto 0;color:var(--mute);text-decoration:underline;min-height:40px}
+.skeleton{height:150px;border-radius:20px;background:linear-gradient(90deg,var(--chip),var(--card),var(--chip));
+  background-size:200% 100%;animation:sk 1.2s infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.demo{background:var(--chip);color:var(--mute);font-size:12.5px;text-align:center;padding:6px;border-radius:10px;margin-bottom:8px}
+.months[hidden]{display:none}
+.rentsum{display:flex;justify-content:space-between;align-items:baseline;padding:14px 4px 4px;font-weight:600}
+.rentsum b{font-size:22px;font-variant-numeric:tabular-nums}
+
+#xsheet{display:none}
+.tabs{grid-template-columns:1fr 1fr}
+.dayc{display:flex;gap:12px;width:100%;text-align:left;padding:12px 14px;align-items:flex-start}
+.dayc+.dayc{border-top:1px solid var(--line)}
+.dayc:active{background:var(--chip)}
+.dn{flex:0 0 42px;text-align:center;line-height:1.1}
+.dn b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.dn span{font-size:12px;color:var(--mute)}
+.dn.we b{color:var(--out)}
+.dn.today b{background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:2px 0}
+.dc{flex:1;min-width:0}
+.dc .tk{white-space:pre-wrap;word-break:break-word;font-size:14.5px}
+.dc .tk+.tk{margin-top:4px}
+.dc .tk i{font-style:normal;color:var(--mute);font-size:12px;margin-right:6px}
+.dc .none{color:var(--mute);font-size:13.5px}
+.dc .meta{margin-top:6px;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+.dc .note{margin-top:4px;font-size:12.5px;color:var(--s2)}
+.ot{flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}
+.ot b{display:block;font-size:17px;color:var(--accent)}
+.ot small{font-size:11.5px;color:var(--mute)}
+.ot.z b{color:var(--mute);font-weight:500}
+.per{display:grid;grid-template-columns:1fr 1fr 78px;gap:8px;margin-bottom:12px}
+.per .fld{margin:0;padding:0 8px;text-align:center}
+.per label.f{margin:0 0 2px 2px}
+textarea.fld{height:auto;min-height:76px;padding:10px 14px;resize:vertical;line-height:1.4;font:inherit}
+.per .fld,.per>div{min-width:0}
+.per input[type=time]{width:100%;font-size:15px}
+h4.sec{margin:6px 2px 8px;font-size:14px}
+.xs{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--card);border-radius:24px 24px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));z-index:21;transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1);max-height:92vh;overflow-y:auto}
+.xs.on{transform:none}
+.months button.add{background:none;border:1.5px dashed var(--mute)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Work Note<small id="sub">กำลังโหลด…</small></h1>
+    <div style="display:flex"><button class="icon-btn" id="gear" aria-label="ตั้งค่าการเชื่อมต่อ">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button><button class="icon-btn" id="refresh" aria-label="รีเฟรชข้อมูล">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+    </button></div>
+  </header>
+  <div id="demo" class="demo" hidden>โหมดตัวอย่าง — ยังไม่ได้เชื่อมกับ Google Sheet</div>
+  <nav class="months" id="months" role="tablist" aria-label="เลือกเดือน"></nav>
+  <main id="main"><div class="skeleton"></div></main>
+</div>
+
+<button class="fab" id="fab" aria-label="บันทึกงานวันนี้">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>บันทึกงาน
+</button>
+
+<div id="scrim"></div>
+<section id="sheet" class="xs" role="dialog" aria-modal="true" aria-labelledby="sh-title"></section>
+
+<section id="setup" class="setup" hidden>
+  <div class="setup-card">
+    <h2>เชื่อมต่อกับ Google Sheet</h2>
+    <p class="hint">กรอกครั้งเดียว แอปจะจำไว้ในเครื่องนี้ (ดูวิธีได้ในคู่มือ)</p>
+    <label class="f" for="cfgUrl">ลิงก์ Apps Script (ลงท้าย /exec)</label>
+    <input class="fld" id="cfgUrl" type="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+    <label class="f" for="cfgTok">รหัสลับ</label>
+    <input class="fld" id="cfgTok" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="รหัสจาก setupToken">
+    <p class="err" id="cfgErr" role="alert"></p>
+    <div class="actions" style="position:static;margin:0;padding:0">
+      <button class="btn danger" id="cfgClear" hidden>ลืมค่า</button>
+      <button class="btn primary" id="cfgSave">เชื่อมต่อ</button>
+    </div>
+    <button class="linkbtn" id="cfgDemo">ลองดูโหมดตัวอย่างก่อน</button>
+  </div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+var DEMO = /[?&]demo=1/.test(location.search);
+var CFGKEY='workNoteCfg';
+function cfgGet(){ try{ var c=JSON.parse(localStorage.getItem(CFGKEY)||'null'); return (c&&c.url&&c.token)?c:null }catch(e){ return null } }
+function cfgSet(c){ try{ if(c)localStorage.setItem(CFGKEY,JSON.stringify(c)); else localStorage.removeItem(CFGKEY) }catch(e){} }
+var CFG = cfgGet();
+
+function api(fn,args){
+  return fetch(CFG.url,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({token:CFG.token,fn:fn,args:args})})
+  .then(function(r){ return r.json() },function(){ throw new Error('เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตและลิงก์') })
+  .catch(function(e){ throw (e instanceof SyntaxError)?new Error('ลิงก์ไม่ถูกต้อง หรือยังไม่ได้ตั้งสิทธิ์เป็น Anyone'):e })
+  .then(function(j){ if(!j.ok) throw new Error(j.error||'เกิดข้อผิดพลาด'); return j.data });
+}
+function call(fn){ var a=Array.prototype.slice.call(arguments,1); return DEMO?MOCK[fn].apply(null,a):api(fn,a) }
+
+/* ===== ข้อมูลตัวอย่าง (สมมติทั้งหมด) ===== */
+var MOCK=(function(){
+  var db=[];
+  function mkMonth(y,m,merged,upto){
+    var n=new Date(y,m,0).getDate(), days=[];
+    for(var d=1;d<=n;d++){
+      var wk=new Date(y,m-1,d).getDay(), work=wk!==0&&d<=upto;
+      var otA=work&&d%3===0?1.5:0, otP=work&&(d%2===0||wk===6)?(wk===6?4.5:3):0;
+      days.push({row:2+2*(d-1),day:d,date:y+'-'+pad(m)+'-'+pad(d),mergedTask:merged,
+        am:{task:work?['ตรวจสอบระบบควบคุมเครื่อง A','แก้โปรแกรมเครื่อง B','เตรียมเอกสารทดสอบ 26M0101'][d%3]+(d%4===0?' (26M0101)':''):(d<=upto?'พักผ่อน':''),ot:otA?'07.00-08.30':'-',h:otA},
+        pm:{task:merged?'':(work?'ทดสอบเดินเครื่อง Auto':''),ot:otP?(wk===6?'13.00-17.30':'17.30-20.30'):'-',h:otP},
+        note:d===5?'ตัวอย่างหมายเหตุ':'',g:0});
+    }
+    return {name:['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'][m-1]+pad(y%100),year:y,month:m,days:days};
+  }
+  db=[mkMonth(2026,9,false,30),mkMonth(2026,10,false,31),mkMonth(2026,11,true,12)];
+  function wait(v){return new Promise(function(r){setTimeout(function(){r(JSON.parse(JSON.stringify(v)))},200)})}
+  function find(n){return db.filter(function(m){return m.name===n})[0]}
+  return {
+    getAll:function(){return wait({v:1,today:'2026-11-12',months:db})},
+    saveDay:function(p){var m=find(p.sheet),d=m.days.filter(function(x){return x.row===p.row})[0];
+      d.am.task=p.amTask; if(!d.mergedTask)d.pm.task=p.pmTask; d.am.ot=p.am.ot||(p.am.h?'':'-'); d.am.h=+p.am.h||0; d.pm.ot=p.pm.ot||(p.pm.h?'':'-'); d.pm.h=+p.pm.h||0; d.note=p.note;
+      return wait({month:m})},
+    clearDay:function(p){var m=find(p.sheet),d=m.days.filter(function(x){return x.row===p.row})[0];
+      d.am={task:'',ot:'-',h:0}; d.pm={task:'',ot:'-',h:0}; d.note=''; return wait({month:m})},
+    createMonth:function(p){db.push(mkMonth(p.year,p.month,true,0)); return wait({v:1,today:'2026-11-12',months:db})}
+  };
+})();
+
+/* ===== ตัวช่วย ===== */
+var THAI_M=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+var THAI_MFULL=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+var THAI_D=['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+var MON_ABBR=['Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'];
+function $(id){return document.getElementById(id)}
+function pad(n){return n<10?'0'+n:''+n}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function hr(n){n=Math.round(n*100)/100;return Number.isInteger(n)?String(n):String(n)}
+function be(y){return y+543}
+function wdOf(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]).getDay()}
+function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove('on')},2600)}
+function cycleLabel(key){var y=+key.slice(0,4),m=+key.slice(5,7),pm=m===1?12:m-1;return '16 '+THAI_M[pm-1]+' – 15 '+THAI_M[m-1]}
+
+/* ===== สถานะ + คำนวณ ===== */
+var S={data:null,mi:0,tab:'days',all:[],cyc:{},confirmNew:false};
+function cur(){return S.data.months[S.mi]}
+
+/* OT รวมรอบ 16→15: เริ่มรอบใหม่ทุกวันที่ 16 (ยอดตั้งต้นของรอบแรกที่มีในชีต ใช้ค่า OT Total ของวันที่ 1) */
+function compute(){
+  var all=[]; S.data.months.forEach(function(m){ m.days.forEach(function(d){ d.ot=(d.am.h||0)+(d.pm.h||0); d.mname=m.name; all.push(d) }) });
+  all.sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0});
+  all.forEach(function(d){ var y=+d.date.slice(0,4),mo=+d.date.slice(5,7); if(d.day>=16){mo++;if(mo>12){mo=1;y++}} d.cycle=y+'-'+pad(mo) });
+  var first=all[0], base=0;
+  if(first&&first.day===1&&first.g>0) base=Math.max(0,first.g-first.ot);
+  var c=null,run=0,tot={};
+  all.forEach(function(d,i){ if(d.cycle!==c){c=d.cycle;run=(i===0||(all[0].cycle===c))?base:0}
+    run=Math.round((run+d.ot)*100)/100; d.run=run; tot[c]=run });
+  S.all=all; S.cyc=tot;
+}
+
+function load(keep){
+  $('refresh').classList.add('spin');
+  return call('getAll').then(function(d){
+    var prev=S.data&&keep?cur().name:null; S.data=d; compute();
+    var idx=-1; if(prev)d.months.forEach(function(m,i){if(m.name===prev)idx=i});
+    if(idx<0){ var t=d.today.split('-'); d.months.forEach(function(m,i){if(m.year===+t[0]&&m.month===+t[1])idx=i}); if(idx<0)idx=d.months.length-1 }
+    S.mi=Math.max(0,idx); render();
+  }).catch(function(e){
+    if(e.message==='unauthorized'){ openSetup('รหัสลับไม่ถูกต้อง ลองกรอกใหม่อีกครั้ง'); return }
+    $('main').innerHTML='<div class="empty">โหลดข้อมูลไม่สำเร็จ<br><small>'+esc(e.message)+'</small><br><br><button class="btn primary" style="flex:none;padding:0 24px" onclick="load(false)">ลองใหม่</button></div>';
+  }).then(function(){$('refresh').classList.remove('spin')});
+}
+
+/* ===== วาดหน้าจอ ===== */
+function render(){
+  if(!S.data.months.length){ $('main').innerHTML='<div class="empty">ไม่พบแท็บรายเดือน (เช่น Jan26)</div>'; return }
+  var m=cur(), multiYear=S.data.months.some(function(x){return x.year!==S.data.months[0].year});
+  $('sub').textContent=THAI_MFULL[m.month-1]+' '+be(m.year);
+  var last=S.data.months[S.data.months.length-1];
+  $('months').innerHTML=S.data.months.map(function(x,i){
+    return '<button role="tab" aria-selected="'+(i===S.mi)+'" data-i="'+i+'">'+THAI_M[x.month-1]+(multiYear?' '+pad(x.year%100):'')+'</button>'}).join('')
+    +'<button class="add" data-new="1" aria-label="สร้างเดือนถัดไป">'+(S.confirmNew?'แตะอีกครั้งเพื่อสร้าง '+nextName():'+')+'</button>';
+  var sel=$('months').querySelector('[aria-selected=true]'); if(sel&&sel.scrollIntoView)sel.scrollIntoView({inline:'center',block:'nearest'});
+
+  var ot=0,dw=0,wk=0; m.days.forEach(function(d){ot+=d.ot;if(d.ot>0)dw++;if(d.am.task||d.pm.task||d.ot>0)wk++});
+  var pm=m.month===1?12:m.month-1, nm=m.month===12?1:m.month+1;
+  var cEnd=m.year+'-'+pad(m.month), cNext=(m.month===12?m.year+1:m.year)+'-'+pad(nm);
+  var h='<section class="hero"><div class="label">OT เดือนนี้</div><div class="big">'+hr(ot)+' <span style="font-size:20px;font-weight:600">ชม.</span></div>'
+   +'<div class="row"><div><b>'+hr(S.cyc[cEnd]||0)+' ชม.</b><span>OT รวมรอบ '+cycleLabel(cEnd)+'</span></div><div><b>'+hr(S.cyc[cNext]||0)+' ชม.</b><span>OT รวมรอบ '+cycleLabel(cNext)+'</span></div></div>'
+   +'<div class="avg">ทำ OT '+dw+' วัน · บันทึกงานแล้ว '+wk+' วัน</div></section>'
+   +'<div class="tabs" role="tablist"><button role="tab" data-tab="days" aria-selected="'+(S.tab==='days')+'">รายวัน</button><button role="tab" data-tab="sum" aria-selected="'+(S.tab==='sum')+'">สรุป</button></div>';
+  h+=S.tab==='days'?daysHTML(m):sumHTML(m);
+  $('main').innerHTML=h;
+}
+function nextName(){ var l=S.data.months[S.data.months.length-1], y=l.month===12?l.year+1:l.year, mo=l.month===12?1:l.month+1; return MON_ABBR[mo-1]+pad(y%100) }
+
+function daysHTML(m){
+  var t=S.data.today, days=m.days.filter(function(d){return d.date<=t||d.am.task||d.pm.task||d.ot>0||d.note}).slice().reverse();
+  if(!days.length) return '<div class="empty">ยังไม่มีรายการในเดือนนี้<br>กด “บันทึกงาน” เพื่อเริ่ม</div>';
+  return '<div class="card" style="margin-top:8px">'+days.map(function(d){
+    var w=wdOf(d.date), tk='';
+    if(d.mergedTask){ if(d.am.task) tk='<div class="tk">'+esc(d.am.task)+'</div>' }
+    else { if(d.am.task)tk+='<div class="tk"><i>เช้า</i>'+esc(d.am.task)+'</div>'; if(d.pm.task)tk+='<div class="tk"><i>บ่าย</i>'+esc(d.pm.task)+'</div>' }
+    if(!tk) tk='<div class="none">ยังไม่มีบันทึกงาน · แตะเพื่อเพิ่ม</div>';
+    var meta=[]; if(d.am.h>0)meta.push('เช้า '+esc(d.am.ot||'')+' ('+hr(d.am.h)+')'); if(d.pm.h>0)meta.push('บ่าย '+esc(d.pm.ot||'')+' ('+hr(d.pm.h)+')');
+    return '<button class="dayc" data-row="'+d.row+'"><div class="dn'+(w===0||w===6?' we':'')+(d.date===t?' today':'')+'"><b>'+d.day+'</b><span>'+THAI_D[w]+'</span></div>'
+      +'<div class="dc">'+tk+(meta.length?'<div class="meta">'+meta.join(' · ')+'</div>':'')+(d.note?'<div class="note">'+esc(d.note)+'</div>':'')+'</div>'
+      +'<div class="ot'+(d.ot>0?'':' z')+'"><b>'+(d.ot>0?'OT '+hr(d.ot):'–')+'</b><small>รวม '+hr(d.run)+'</small></div></button>';
+  }).join('')+'</div>';
+}
+
+/* ===== สรุป: กราฟ OT รายวัน, OT รวมแต่ละรอบ, งานที่ทำบ่อย ===== */
+function sumHTML(m){
+  var h='';
+  // 1) OT รายวัน
+  var n=m.days.length, max=0; m.days.forEach(function(d){if(d.ot>max)max=d.ot});
+  var W=340,H=170,L=26,R=6,T=10,B=22,pw=W-L-R,ph=H-T-B, top=Math.max(4,Math.ceil(max/2)*2);
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="กราฟ OT รายวัน">';
+  [0,.5,1].forEach(function(f){var y=T+ph*(1-f); svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--grid)"/><text x="'+(L-4)+'" y="'+(y+3)+'" text-anchor="end">'+hr(top*f)+'</text>'});
+  var bw=pw/n;
+  m.days.forEach(function(d,i){ var bh=top?d.ot/top*ph:0, x=L+i*bw;
+    if(d.ot>0) svg+='<rect data-tip="'+d.day+' '+THAI_M[m.month-1]+' · OT '+hr(d.ot)+' ชม." x="'+(x+bw*.15).toFixed(1)+'" y="'+(T+ph-bh).toFixed(1)+'" width="'+(bw*.7).toFixed(1)+'" height="'+bh.toFixed(1)+'" rx="2" fill="var(--s1)"/>';
+    svg+='<rect data-tip="'+d.day+' '+THAI_M[m.month-1]+' · OT '+hr(d.ot)+' ชม." x="'+x.toFixed(1)+'" y="'+T+'" width="'+bw.toFixed(1)+'" height="'+ph+'" fill="transparent"/>';
+    if(d.day===1||d.day%5===0) svg+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+d.day+'</text>';
+  });
+  svg+='</svg>';
+  h+='<section class="card ch"><h3>OT แต่ละวัน</h3><div class="sub">ชั่วโมงต่อวัน แตะแท่งเพื่อดูตัวเลข</div>'+svg+'<div class="readout">&nbsp;</div></section>';
+  // 2) OT รวมแต่ละรอบ
+  var keys=Object.keys(S.cyc).sort().reverse().slice(0,8), mx=0; keys.forEach(function(k){if(S.cyc[k]>mx)mx=S.cyc[k]});
+  h+='<section class="card ch"><h3>OT รวมแต่ละรอบ</h3><div class="sub">นับ 16 ของเดือนก่อน ถึง 15 ของเดือนนั้น</div>'
+   +keys.map(function(k){ return '<div class="grp" style="padding:8px 0"><div class="top"><span>'+cycleLabel(k)+'</span><span>'+hr(S.cyc[k])+' ชม.</span></div><div class="bar"><i style="width:'+(mx?S.cyc[k]/mx*100:0).toFixed(1)+'%"></i></div></div>' }).join('')+'</section>';
+  // 3) งานที่ทำบ่อยในเดือนนี้ (รหัสงานแบบ 25M0042)
+  var agg={}; m.days.forEach(function(d){ var txt=d.am.task+' '+d.pm.task, codes={}, c; var re=/\b\d{2}M\d{4}\b/g; while((c=re.exec(txt)))codes[c[0]]=1;
+    var ks=Object.keys(codes); ks.forEach(function(k){ agg[k]=agg[k]||{days:0,ot:0}; agg[k].days++; agg[k].ot+=d.ot/ks.length }) });
+  var pk=Object.keys(agg).sort(function(a,b){return agg[b].days-agg[a].days||agg[b].ot-agg[a].ot}).slice(0,8);
+  h+='<section class="card ch"><h3>งานในเดือนนี้</h3><div class="sub">รวมตามรหัสงาน (เช่น 26M0015) · OT แบ่งเท่า ๆ กันถ้าวันนั้นมีหลายงาน</div>'
+   +(pk.length?pk.map(function(k){return '<div class="lg"><span>'+esc(k)+'</span><span>'+agg[k].days+' วัน · OT '+hr(agg[k].ot)+' ชม.</span></div>'}).join(''):'<div class="empty" style="padding:16px 0">ยังไม่พบรหัสงานในรายละเอียด</div>')+'</section>';
+  return h;
+}
+
+/* ===== ฟอร์มบันทึกงาน ===== */
+var F={row:0,busy:false,manual:{am:false,pm:false}};
+function splitOt(t){ var m=/^(\d{1,2})\.(\d{2})-(\d{1,2})\.(\d{2})$/.exec(t||''); return m?{a:pad(+m[1])+':'+m[2],b:pad(+m[3])+':'+m[4]}:{a:'',b:''} }
+function calcH(a,b){ if(!a||!b)return ''; var x=a.split(':'),y=b.split(':'), s=+x[0]*60+ +x[1], e=+y[0]*60+ +y[1]; if(e<=s)e+=1440; return Math.round((e-s)/60*100)/100 }
+function perHTML(id,label,o){ var s=splitOt(o.ot);
+  return '<h4 class="sec">'+label+'</h4><div class="per"><div><label class="f" for="'+id+'a">เริ่ม OT</label><input class="fld" id="'+id+'a" type="time" value="'+s.a+'"></div>'
+    +'<div><label class="f" for="'+id+'b">เลิก OT</label><input class="fld" id="'+id+'b" type="time" value="'+s.b+'"></div>'
+    +'<div><label class="f" for="'+id+'h">ชม.</label><input class="fld" id="'+id+'h" type="text" inputmode="decimal" placeholder="0" value="'+(o.h?o.h:'')+'"></div></div>'; }
+function findDay(date){ var r=null; S.data.months.forEach(function(m){ m.days.forEach(function(d){ if(d.date===date)r={m:m,d:d} }) }); return r }
+function openForm(date){
+  var f=findDay(date); if(!f){ toast('ไม่พบวันที่นี้ในชีต'); return }
+  F.m=f.m; F.d=f.d; F.busy=false; F.manual={am:false,pm:false}; var d=f.d, m=f.m;
+  var first=m.days[0].date, last=m.days[m.days.length-1].date;
+  $('sheet').innerHTML='<div class="grab"></div><div class="sh-h"><h2 id="sh-title">บันทึกงาน</h2><button class="icon-btn" id="close" aria-label="ปิด"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
+   +'<label class="f" for="fdate">วันที่</label><input class="fld" id="fdate" type="date" min="'+first+'" max="'+last+'" value="'+date+'">'
+   +(d.mergedTask?'<label class="f" for="ftaskA">รายละเอียดงาน (ทั้งวัน)</label><textarea class="fld" id="ftaskA" placeholder="เช่น 26M0015 ทดสอบโปรแกรม">'+esc(d.am.task)+'</textarea>'
+     :'<label class="f" for="ftaskA">รายละเอียดงาน เช้า</label><textarea class="fld" id="ftaskA">'+esc(d.am.task)+'</textarea><label class="f" for="ftaskP">รายละเอียดงาน บ่าย</label><textarea class="fld" id="ftaskP">'+esc(d.pm.task)+'</textarea>')
+   +perHTML('am','OT ช่วงเช้า',d.am)+perHTML('pm','OT ช่วงเย็น/บ่าย',d.pm)
+   +'<div class="readout" id="otsum" style="margin:-4px 0 10px"></div>'
+   +'<label class="f" for="fnote">หมายเหตุ</label><input class="fld" id="fnote" autocomplete="off" value="'+esc(d.note)+'">'
+   +'<p class="err" id="err" role="alert"></p><div class="actions"><button class="btn danger" id="del">ล้าง</button><button class="btn primary" id="save">บันทึก</button></div>';
+  otsum(); $('scrim').classList.add('on'); $('sheet').classList.add('on');
+}
+function closeForm(){ $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); document.activeElement&&document.activeElement.blur() }
+function hv(id){ return parseFloat(String($(id).value).replace(/,/g,''))||0 }
+function otsum(){ var t=hv('amh')+hv('pmh'); $('otsum').textContent='OT วันนี้รวม '+hr(t)+' ชม.' }
+function autoH(p){ if(F.manual[p])return; var h=calcH($(p+'a').value,$(p+'b').value); $(p+'h').value=h===''?'':h; otsum() }
+function dotText(p){ var a=$(p+'a').value,b=$(p+'b').value; if(!a||!b)return ''; return a.replace(':','.')+'-'+b.replace(':','.') }
+function submit(){
+  if(F.busy)return; var d=F.d, hA=hv('amh'), hP=hv('pmh');
+  if(hA<0||hA>24||hP<0||hP>24){ $('err').textContent='จำนวนชั่วโมง OT ไม่ถูกต้อง'; return }
+  var p={sheet:F.m.name,row:d.row,day:d.day,amTask:$('ftaskA').value,pmTask:$('ftaskP')?$('ftaskP').value:'',
+    am:{ot:dotText('am'),h:hA},pm:{ot:dotText('pm'),h:hP},note:$('fnote').value};
+  F.busy=true; $('save').disabled=true; $('save').textContent='กำลังบันทึก…'; $('err').textContent='';
+  call('saveDay',p).then(function(res){ replaceMonth(res.month); closeForm(); toast('บันทึกแล้ว') })
+  .catch(function(e){ F.busy=false; $('save').disabled=false; $('save').textContent='บันทึก'; $('err').textContent=e.message });
+}
+function clearIt(){
+  var b=$('del'); if(!b.classList.contains('sure')){ b.classList.add('sure'); b.textContent='แตะอีกครั้งเพื่อล้าง'; return }
+  if(F.busy)return; F.busy=true; b.disabled=true;
+  call('clearDay',{sheet:F.m.name,row:F.d.row,day:F.d.day}).then(function(res){ replaceMonth(res.month); closeForm(); toast('ล้างแล้ว') })
+  .catch(function(e){ F.busy=false; b.disabled=false; $('err').textContent=e.message });
+}
+function replaceMonth(mo){ S.data.months[S.mi]=S.data.months.map(function(x){return x.name}).indexOf(mo.name)>=0?mo:S.data.months[S.mi];
+  var i=S.data.months.map(function(x){return x.name}).indexOf(mo.name); if(i>=0)S.data.months[i]=mo; compute(); render() }
+
+/* ===== เหตุการณ์ ===== */
+$('months').addEventListener('click',function(e){
+  var b=e.target.closest('button'); if(!b)return;
+  if(b.dataset.new){
+    if(!S.confirmNew){ S.confirmNew=true; render(); clearTimeout(S.cn); S.cn=setTimeout(function(){S.confirmNew=false;render()},4000); return }
+    S.confirmNew=false; var l=S.data.months[S.data.months.length-1];
+    b.disabled=true; call('createMonth',{year:l.month===12?l.year+1:l.year,month:l.month===12?1:l.month+1}).then(function(d){
+      S.data=d; compute(); S.mi=d.months.length-1; render(); toast('สร้างเดือนใหม่แล้ว') }).catch(function(er){ render(); toast(er.message) });
+    return }
+  S.mi=+b.dataset.i; render();
+});
+$('main').addEventListener('click',function(e){
+  var t=e.target.closest('[data-tab]'); if(t){S.tab=t.dataset.tab;render();return}
+  var tp=e.target.closest('[data-tip]'); if(tp){tp.closest('.ch').querySelector('.readout').textContent=tp.dataset.tip;return}
+  var r=e.target.closest('[data-row]'); if(r){ var row=+r.dataset.row, dd=cur().days.filter(function(x){return x.row===row})[0]; if(dd)openForm(dd.date) }
+});
+$('fab').onclick=function(){
+  if(!S.data)return; var t=S.data.today, m=cur(), f=findDay(t);
+  openForm(f?t:m.days[m.days.length-1].date);
+};
+$('close')&&0;
+$('sheet').addEventListener('click',function(e){
+  if(e.target.closest('#close'))return closeForm();
+  if(e.target.closest('#save'))return submit();
+  if(e.target.closest('#del'))return clearIt();
+});
+$('sheet').addEventListener('input',function(e){
+  var id=e.target.id; if(!id)return;
+  if(id==='amh'||id==='pmh'){ e.target.value=e.target.value.replace(/[^0-9.,]/g,''); F.manual[id.slice(0,2)]=true; otsum() }
+  else if(/^(am|pm)[ab]$/.test(id)){ F.manual[id.slice(0,2)]=false; autoH(id.slice(0,2)) }
+});
+$('sheet').addEventListener('change',function(e){
+  if(e.target.id==='fdate'){ if(e.target.value&&findDay(e.target.value))openForm(e.target.value) }
+});
+$('scrim').onclick=closeForm;
+$('refresh').onclick=function(){load(true)};
+document.addEventListener('visibilitychange',function(){ if(!document.hidden&&S.data&&!$('sheet').classList.contains('on'))load(true) });
+
+function openSetup(msg){
+  $('cfgUrl').value=CFG?CFG.url:''; $('cfgTok').value=CFG?CFG.token:'';
+  $('cfgErr').textContent=msg||''; $('cfgClear').hidden=!CFG;
+  $('cfgSave').disabled=false; $('cfgSave').textContent='เชื่อมต่อ'; $('setup').hidden=false;
+}
+$('gear').onclick=function(){ openSetup('') };
+$('cfgDemo').onclick=function(){ location.search='?demo=1' };
+$('cfgClear').onclick=function(){ cfgSet(null); CFG=null; S.data=null; $('main').innerHTML=''; openSetup('ลบค่าที่จำไว้แล้ว') };
+$('cfgSave').onclick=function(){
+  var url=$('cfgUrl').value.trim(), tok=$('cfgTok').value.replace(/\s+/g,'');
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){ $('cfgErr').textContent='ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/ และลงท้ายด้วย /exec'; return }
+  if(tok.length<16){ $('cfgErr').textContent='กรุณากรอกรหัสลับให้ครบ'; return }
+  var prev=CFG; CFG={url:url,token:tok};
+  $('cfgSave').disabled=true; $('cfgSave').textContent='กำลังเชื่อมต่อ…'; $('cfgErr').textContent='';
+  api('getAll',[]).then(function(){ cfgSet(CFG); $('setup').hidden=true; load(false) })
+  .catch(function(e){ CFG=prev; $('cfgSave').disabled=false; $('cfgSave').textContent='เชื่อมต่อ'; $('cfgErr').textContent=e.message==='unauthorized'?'รหัสลับไม่ถูกต้อง':e.message });
+};
+
+if(DEMO){ $('demo').hidden=false; load(false) }
+else if(!CFG){ $('main').innerHTML=''; openSetup('') }
+else load(false);
+</script>
+</body>
+</html>
